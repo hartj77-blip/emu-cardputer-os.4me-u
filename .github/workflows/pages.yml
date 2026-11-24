@@ -1,0 +1,76 @@
+name: Pages
+
+# Builds the ZeroOS browser simulator from the OS repository's main branch and
+# publishes it to https://hartj77-blip.github.io/emu-cardputer-os.4me-u/
+# Runs every hour and skips the build when the live site already has the
+# newest commit. Run it by hand (Actions > Pages > Run workflow) to force one.
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  OS_REPO: hartj77-blip/CardPuter-OS.4ME-U
+  SITE: https://hartj77-blip.github.io/emu-cardputer-os.4me-u/
+
+jobs:
+  check:
+    name: Anything new?
+    runs-on: ubuntu-24.04
+    outputs:
+      sha: ${{ steps.sha.outputs.sha }}
+      build: ${{ steps.sha.outputs.build }}
+    steps:
+      - id: sha
+        run: |
+          sha=$(git ls-remote "https://github.com/$OS_REPO.git" refs/heads/main | cut -f1)
+          live=$(curl -fsL "$SITE" | grep -o 'const COMMIT = "[0-9a-f]*"' | grep -o '[0-9a-f]\{40\}' || true)
+          echo "OS main: $sha, live site: ${live:-none}"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          if [ "$sha" != "$live" ] || [ "$GITHUB_EVENT_NAME" != schedule ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    name: Build the simulator
+    needs: check
+    if: needs.check.outputs.build == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.OS_REPO }}
+          ref: ${{ needs.check.outputs.sha }}
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.74
+      - name: Build
+        run: |
+          mkdir -p site
+          # build.sh stamps the page with $GITHUB_SHA; use the OS commit, not ours.
+          GITHUB_SHA=${{ needs.check.outputs.sha }} web/build.sh site/index.html
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
