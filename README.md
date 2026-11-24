@@ -8,6 +8,9 @@ The hardware (battery, Wi-Fi, sensors, audio) is simulated.
 This repository only hosts the page. The code is in
 [CardPuter-OS.4ME-U](https://github.com/hartj77-blip/CardPuter-OS.4ME-U) (`web/`), and
 `.github/workflows/pages.yml` rebuilds the page from its `main` branch within an hour of every change.
+The Apps tab's list (`apps.json`) comes from
+[CardPuter-Apps.4ME-U](https://github.com/hartj77-blip/CardPuter-Apps.4ME-U) the same way, written by
+`tools/apps-json.py` from each app's `.pkg` file.
 
 Found a problem? Use **Report a problem** on the page. It opens an issue in the OS repository with
 a link that replays the keys you pressed.
