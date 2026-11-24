@@ -3,11 +3,13 @@ name: Pages
 # Builds the ZeroOS browser simulator from the OS repository's main branch,
 # with the app list (apps.json) from the Apps repository's main branch, and
 # publishes both to https://hartj77-blip.github.io/emu-cardputer-os.4me-u/
-# Runs every hour and skips the build when the live site already has the
-# newest commit of both. Run it by hand (Actions > Pages > Run workflow) to force one.
+# Checks every 5 minutes (a few seconds of work) and only builds when the
+# live site is behind either repository, so a change to ZeroOS or an app is on
+# the site within about 5-15 minutes (GitHub sometimes runs schedules late).
+# Run it by hand (Actions > Pages > Run workflow) to force a build.
 on:
   schedule:
-    - cron: "17 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
   push:
     branches: [main]
