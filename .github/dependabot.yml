@@ -1,0 +1,8 @@
+# The workflows' actions are pinned to commit SHAs, so a moved tag can't change
+# what runs. Dependabot proposes the newer pinned SHA as a pull request.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
