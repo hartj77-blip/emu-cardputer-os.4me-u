@@ -1,9 +1,10 @@
 name: Pages
 
-# Builds the ZeroOS browser simulator from the OS repository's main branch and
-# publishes it to https://hartj77-blip.github.io/emu-cardputer-os.4me-u/
+# Builds the ZeroOS browser simulator from the OS repository's main branch,
+# with the app list (apps.json) from the Apps repository's main branch, and
+# publishes both to https://hartj77-blip.github.io/emu-cardputer-os.4me-u/
 # Runs every hour and skips the build when the live site already has the
-# newest commit. Run it by hand (Actions > Pages > Run workflow) to force one.
+# newest commit of both. Run it by hand (Actions > Pages > Run workflow) to force one.
 on:
   schedule:
     - cron: "17 * * * *"
@@ -22,6 +23,7 @@ concurrency:
 
 env:
   OS_REPO: hartj77-blip/CardPuter-OS.4ME-U
+  APPS_REPO: hartj77-blip/CardPuter-Apps.4ME-U
   SITE: https://hartj77-blip.github.io/emu-cardputer-os.4me-u/
 
 jobs:
@@ -29,16 +31,21 @@ jobs:
     name: Anything new?
     runs-on: ubuntu-24.04
     outputs:
-      sha: ${{ steps.sha.outputs.sha }}
+      os: ${{ steps.sha.outputs.os }}
+      apps: ${{ steps.sha.outputs.apps }}
       build: ${{ steps.sha.outputs.build }}
     steps:
       - id: sha
         run: |
-          sha=$(git ls-remote "https://github.com/$OS_REPO.git" refs/heads/main | cut -f1)
-          live=$(curl -fsL "$SITE" | grep -o 'const COMMIT = "[0-9a-f]*"' | grep -o '[0-9a-f]\{40\}' || true)
-          echo "OS main: $sha, live site: ${live:-none}"
-          echo "sha=$sha" >> "$GITHUB_OUTPUT"
-          if [ "$sha" != "$live" ] || [ "$GITHUB_EVENT_NAME" != schedule ]; then
+          os=$(git ls-remote "https://github.com/$OS_REPO.git" refs/heads/main | cut -f1)
+          apps=$(git ls-remote "https://github.com/$APPS_REPO.git" refs/heads/main | cut -f1)
+          live_os=$(curl -fsL "$SITE" | grep -o 'const COMMIT = "[0-9a-f]*"' | grep -o '[0-9a-f]\{40\}' || true)
+          live_apps=$(curl -fsL "${SITE}apps.json" | grep -o '"commit": "[0-9a-f]*"' | grep -o '[0-9a-f]\{40\}' || true)
+          echo "OS main: $os, live: ${live_os:-none}"
+          echo "Apps main: $apps, live: ${live_apps:-none}"
+          echo "os=$os" >> "$GITHUB_OUTPUT"
+          echo "apps=$apps" >> "$GITHUB_OUTPUT"
+          if [ "$os" != "$live_os" ] || [ "$apps" != "$live_apps" ] || [ "$GITHUB_EVENT_NAME" != schedule ]; then
             echo "build=true" >> "$GITHUB_OUTPUT"
           fi
 
@@ -50,8 +57,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          path: site-src
+      - uses: actions/checkout@v4
+        with:
           repository: ${{ env.OS_REPO }}
-          ref: ${{ needs.check.outputs.sha }}
+          ref: ${{ needs.check.outputs.os }}
+          path: os
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.APPS_REPO }}
+          ref: ${{ needs.check.outputs.apps }}
+          path: apps
       - uses: mymindstorm/setup-emsdk@v14
         with:
           version: 3.1.74
@@ -59,7 +75,8 @@ jobs:
         run: |
           mkdir -p site
           # build.sh stamps the page with $GITHUB_SHA; use the OS commit, not ours.
-          GITHUB_SHA=${{ needs.check.outputs.sha }} web/build.sh site/index.html
+          GITHUB_SHA=${{ needs.check.outputs.os }} os/web/build.sh "$PWD/site/index.html"
+          python3 site-src/tools/apps-json.py apps site/apps.json ${{ needs.check.outputs.apps }}
       - uses: actions/upload-pages-artifact@v4
         with:
           path: site
