@@ -82,7 +82,7 @@ jobs:
           # so every app runs in the browser, not just the OS's own.
           GITHUB_SHA=${{ needs.check.outputs.os }} ZS_APPS="$PWD/apps" os/web/build.sh "$PWD/site/index.html"
           python3 site-src/tools/apps-json.py apps site/apps.json ${{ needs.check.outputs.apps }}
-      - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b  # v4.0.0
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9  # v5.0.0
         with:
           path: site
 
